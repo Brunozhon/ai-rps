@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>AI Rock, Paper, Scissors</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+  </head>
+  <body>
+    <h1>AI Rock, Paper, Scissors</h1>
+    <div>
+        <button class="btn btn-primary" onclick="handlePlayerMove('rock')">Rock</button>
+        <button class="btn btn-primary" onclick="handlePlayerMove('paper')">Paper</button>
+        <button class="btn btn-primary" onclick="handlePlayerMove('scissors')">Scissors</button>
+        <p id="move"></p>
+        <h2>Probabilities of Your Move</h2>
+        <table class="table table-striped">
+            <thead>
+              <tr>
+                <th>Move</th>
+                <th>Probability</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Rock</td>
+                <td id="prob-rock">-</td>
+              </tr>
+              <tr>
+                <td>Paper</td>
+                <td id="prob-paper">-</td>
+              </tr>
+              <tr>
+                <td>Scissors</td>
+                <td id="prob-scissors">-</td>
+              </tr>
+            </tbody>
+        </table>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/brain.js"></script>
+    <script>
+        let trainingData = [];
+        let lastPlayerMove = "rock";
+        let moves = 0;
+
+        const net = new brain.NeuralNetwork({
+            hiddenLayers: [5]
+        });
+
+        function updateProbabilitiesTable(probabilities) {
+            document.getElementById("prob-rock").textContent = (probabilities.rock * 100).toFixed(2) + "%";
+            document.getElementById("prob-paper").textContent = (probabilities.paper * 100).toFixed(2) + "%";
+            document.getElementById("prob-scissors").textContent = (probabilities.scissors * 100).toFixed(2) + "%";
+        }
+
+        function predictNextMove(lastMove) {
+            if (trainingData.length > 5) {
+                let input = { rock: 0, scissors: 0, paper: 0 };
+                input[lastMove] = 1;
+
+                const output = net.run(input);
+                
+                console.log(output);
+
+                const predictedMove = Object.keys(output).reduce((a, b) =>
+                    output[a] > output[b] ? a : b
+                );
+
+                updateProbabilitiesTable(output);
+
+                return predictedMove;
+            } else {
+                return ["rock", "paper", "scissors"][Math.floor(Math.random() * 3)];
+            }
+        }
+
+        function getCounterMove(predictedMove) {
+            if (predictedMove === "rock") return "paper";
+            if (predictedMove === "paper") return "scissors";
+            if (predictedMove === "scissors") return "rock";
+        }
+
+        function updateTrainingData(lastMove, playerMove) {
+            let input = { rock: 0, scissors: 0, paper: 0 };
+            input[lastMove] = 1;
+
+            let output = { rock: 0, paper: 0, scissors: 0 };
+            output[playerMove] = 1;
+
+            trainingData.push({input, output});
+
+            if (trainingData.length > 5) {
+                net.train(trainingData, {
+                    iterations: 500,
+                    errorThresh: 0.01
+                });
+            } 
+        }
+
+        function handlePlayerMove(playerMove) {
+            const aiPrediction = predictNextMove(lastPlayerMove);
+            const aiMove = getCounterMove(aiPrediction);
+
+            let result = "";
+            if (playerMove === aiMove) {
+                result = "It's a tie!";
+            } else if (
+                (playerMove === "rock" && aiMove === "scissors") ||
+                (playerMove === "paper" && aiMove === "rock") ||
+                (playerMove === "scissors" && aiMove === "paper")
+            ) {
+                result = `You win! AI chose ${aiMove}.`;
+            } else {
+                result = `You lose! AI chose ${aiMove}.`;
+            }
+
+            document.getElementById("move").textContent = result;
+            updateTrainingData(lastPlayerMove, playerMove);
+            lastPlayerMove = playerMove;
+        }
+    </script>
+  </body>
+</html>
